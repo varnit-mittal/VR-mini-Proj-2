@@ -112,3 +112,35 @@ Besides Accuracy and BERTScore, we used:
 
 These allow more nuanced performance measurement beyond simple match scores.
 
+
+## Sample Predictions
+
+### ✅ Correct:
+**Q:** What color is the basket?  
+**Predicted:** Brown  
+**Image:** `9b/9b147e56.jpg`
+
+### ❌ Incorrect:
+**Q:** What specific color term is used for the sparkles?  
+**Predicted:** Silver  
+**Expected:** Gold  
+**Image:** `eb/ebc601ed.jpg`
+
+## Limitations
+
+- Fine-grained distinctions (e.g., between silicone and plastic) are difficult.
+- One-word answers limit the complexity of questions.
+
+## Future Work
+
+- Multi-token answer generation
+- Feedback-driven training with adaptive prompt difficulty
+- Exploring more robust visual attention mechanisms
+
+
+## References
+
+- BLIP-2: https://huggingface.co/docs/transformers/model_doc/blip
+- LoRA: https://arxiv.org/abs/2106.09685
+- Gemini API: https://ai.google.dev/gemini-api/docs
+- CSNS & VTGS: Custom-designed metrics for this project.
