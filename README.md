@@ -40,7 +40,7 @@ This repository implements a multiple‐choice Visual Question Answering (VQA) p
 
 ## Report
 
-[Report](https://linktodocumentation)
+[Report](https://github.com/varnit-mittal/VR-mini-Proj-2/blob/main/Report.pdf)
 
 
 ## Environment Variables
@@ -79,7 +79,7 @@ Install dependencies
 Run the inference file
 
 ```bash
-  python inference.py
+  python inference.py --image_dir /path/to/your/image/directory --csv_path /path/to/csv/file
 ```
 
 
