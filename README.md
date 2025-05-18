@@ -3,20 +3,20 @@
 This repository implements a multiple‐choice Visual Question Answering (VQA) pipeline built on top of the Amazon Berkeley Objects (ABO) dataset. The core objectives are:
 
 1. **Dataset Construction (Part A)**
-  - Extract object-centric images and metadata from ABO 
-  - Automatically generate multiple‐choice QA pairs targeting attributes such as color, shape, and material
+   - Extract object-centric images and metadata from ABO 
+   - Automatically generate multiple‐choice QA pairs targeting attributes such as color, shape, and material
 
 2. **Baseline Evaluation (Part B)**
-  - Train and evaluate standard VQA models (e.g., BLIP, ViLT) on the newly created dataset
-  - Report accuracy and BERT score to understand Baseline models' performance
+   - Train and evaluate standard VQA models (e.g., BLIP, ViLT) on the newly created dataset
+   - Report accuracy and BERT score to understand Baseline models' performance
 
 3. **LoRA‐based Fine‐Tuning (Part C)**
-  - Apply Low‐Rank Adaptation (LoRA) to reduce the number of trainable parameters
-  - Report accuracy and BERT score to understand Baseline models' performance
+   - Apply Low‐Rank Adaptation (LoRA) to reduce the number of trainable parameters
+   - Report accuracy and BERT score to understand Baseline models' performance
 
 4. **Performance Analysis**
-  - Use standard metrics (accuracy, precision, recall, F1)  
-  - Created our own valuation metrics like CNS, VTGS
+   - Use standard metrics (accuracy, precision, recall, F1)  
+   - Created our own valuation metrics like CNS, VTGS
 
 
 
