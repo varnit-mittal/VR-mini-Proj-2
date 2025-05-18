@@ -116,44 +116,83 @@ def metric1(df, image_dir):
     std_v  = result["vtgs"].std()
     return [mean_v,std_v]
 
-#  Metric 2: CSNS (Contextual Semantic-Numeric Score)
-def metric2(df, image_dir):
-    def is_number(s):
+def metric2(
+    df,
+    image_dir=None,
+    model_name: str = "all-MiniLM-L6-v2",
+    alpha: float = 5.0,
+    epsilon: float = 1e-6,
+    txt_batch: int = 256
+):
+    """
+    CSNS — Contextual Semantic-Numeric Score (batched, with NaN guard, skipping NaNs).
+    
+    Returns:
+        [mean_score, std_score]
+    """
+    def is_number(x: str) -> bool:
         try:
-            float(s)
+            float(x)
             return True
         except:
             return False
-        
-    #  Score for numeric answers using exponential decay of relative error
-    def numeric_score(gt, pred, alpha=5, epsilon=1e-6):
-        a, b = float(gt), float(pred)
+
+    def numeric_score(gt: str, pred: str) -> float:
+        a = float(gt)
+        b = float(pred)
         rel_err = abs(b - a) / (abs(a) + epsilon)
         return math.exp(-alpha * rel_err)
 
-    # Semantic similarity using Sentence Transformers
-    def semantic_score(emb_model, gt, pred):
-        e1 = emb_model.encode(gt, convert_to_numpy=True, normalize_embeddings=True)
-        e2 = emb_model.encode(pred, convert_to_numpy=True, normalize_embeddings=True)
-        cos = np.dot(e1, e2)
-        return max(0.0, float(cos))
-    
-    def compute_csns(df, model_name="all-MiniLM-L6-v2", alpha=5):
+    df = df.copy()
+    df["answer"]           = df["answer"].astype(str).str.lower()
+    df["generated_answer"] = df["generated_answer"].astype(str).str.lower()
+    df = df[df["answer"].notna() & df["generated_answer"].notna()]
+    df = df[~df["answer"].isin(["nan", "nan "])]  # in case strings 'nan'
+    df = df[~df["generated_answer"].isin(["nan", "nan "])]
+    df = df.reset_index(drop=True)
+    gts   = df["answer"].tolist()
+    preds = df["generated_answer"].tolist()
+    mask_semantic = [
+        not (is_number(g) and is_number(p))
+        for g, p in zip(gts, preds)
+    ]
+    idx_semantic = np.where(mask_semantic)[0]
+
+    if len(idx_semantic) > 0:
         model = SentenceTransformer(model_name)
-        scores = []
-        for gt, pred in tqdm(zip(df["answer"], df["generated_answer"]),total=len(df), desc="CSNS"):
-            if is_number(gt) and is_number(pred): s = numeric_score(gt, pred, alpha=alpha)
-            else:s = semantic_score(model, gt, pred)
-            scores.append(s)
-        df_out = df.copy()
-        df_out["csns"] = scores
-        return df_out
-    df['generated_answer']=df['generated_answer'].apply(lambda x:str(x).lower())
-    df['answer']=df['answer'].apply(lambda x:str(x).lower())
-    result = compute_csns(df)
-    mean_csns = result["csns"].mean()
-    std_csns  = result["csns"].std()
-    return [mean_csns, std_csns]
+        g_list = [gts[i] for i in idx_semantic]
+        p_list = [preds[i] for i in idx_semantic]
+
+        def batched_encode(texts, desc: str):
+            embs = []
+            for i in tqdm(range(0, len(texts), txt_batch), desc=desc):
+                chunk = texts[i : i + txt_batch]
+                embs.append(
+                    model.encode(
+                        chunk,
+                        convert_to_numpy=True,
+                        normalize_embeddings=True,
+                        batch_size=txt_batch,
+                        show_progress_bar=False
+                    )
+                )
+            return np.vstack(embs)
+
+        emb_g = batched_encode(g_list, desc="CSNS: encoding GT")
+        emb_p = batched_encode(p_list, desc="CSNS: encoding Pred")
+
+        cos = (emb_g * emb_p).sum(axis=1)
+        cos = np.nan_to_num(cos, nan=0.0, posinf=1.0, neginf=0.0)
+    scores = np.zeros(len(df), dtype=float)
+    for i in tqdm(range(len(df)), desc="CSNS: numeric scoring"):
+        if not mask_semantic[i]:
+            scores[i] = numeric_score(gts[i], preds[i])
+    if len(idx_semantic) > 0:
+        scores[idx_semantic] = np.clip(cos, 0.0, 1.0)
+    mean_score = float(np.mean(scores))
+    std_score  = float(np.std(scores))
+    return [mean_score, std_score]
+
 
 # Metric 3: BERTScore Precision
 def metric3(df, image_dir):
