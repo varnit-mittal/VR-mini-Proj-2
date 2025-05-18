@@ -1,6 +1,7 @@
-# VR Mini Project 2
+# VR Mini Project 2 Overview
 
-This repository implements a multiple‐choice Visual Question Answering (VQA) pipeline built on top of the Amazon Berkeley Objects (ABO) dataset. The core objectives are:
+This project explores building a Visual Question Answering (VQA) system using the Amazon Berkeley Objects (ABO) dataset. We implemented zero-shot baselines with BLIP-2 and ViLT, then fine-tuned the BLIP-2 model using Low-Rank Adaptation (LoRA). Quantization techniques were also applied to reduce memory usage. We introduced two novel evaluation metrics—CSNS and VTGS—to better assess semantic and visual grounding in answers.
+
 
 1. **Dataset Construction (Part A)**
    - Extract object-centric images and metadata from ABO 
@@ -19,7 +20,8 @@ This repository implements a multiple‐choice Visual Question Answering (VQA) p
    - Created our own valuation metrics like CSNS, VTGS
 
 
-
+# These commands will work for only WSL users. 
+We are working on making them functional for Mac users too.
 ## API Reference
 
 #### Get all items
@@ -82,10 +84,31 @@ Run the inference file
   python inference.py --image_dir /path/to/your/image/directory --csv_path /path/to/csv/file
 ```
 
-
 ## Authors
 
 - [@varnit-mittal](https://www.github.com/varnit-mittal)
 - [@ap5967ap](https://www.github.com/ap5967ap)
 - [@meikenofdarth](https://www.github.com/meikenofdarth)
+
+
+# About the Project
+## Dataset
+
+We use the small variant of the Amazon Berkeley Objects (ABO) dataset:
+
+- ~147,000 product listings
+- ~398,000 images
+- Multilingual metadata (title, brand, description, etc.)
+
+For curation, we used Gemini 2.5 Flash API with prompt templates to generate image-question-answer triples.
+
+
+## Evaluation Metrics
+
+Besides Accuracy and BERTScore, we used:
+
+- **CSNS (Contextual Semantic & Numeric Score)**: Handles semantic similarity and numeric accuracy.
+- **VTGS (Visual-Textual Grounded Score)**: Evaluates both textual alignment and visual grounding.
+
+These allow more nuanced performance measurement beyond simple match scores.
 
