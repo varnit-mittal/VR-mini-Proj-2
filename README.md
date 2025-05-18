@@ -16,7 +16,7 @@ This repository implements a multiple‐choice Visual Question Answering (VQA) p
 
 4. **Performance Analysis**
    - Use standard metrics (accuracy, precision, recall, F1)  
-   - Created our own valuation metrics like CNS, VTGS
+   - Created our own valuation metrics like CSNS, VTGS
 
 
 
