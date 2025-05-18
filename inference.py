@@ -293,7 +293,7 @@ def main():
     metrics={"VTGS":metric1, "CSNS":metric2, "BERT":metric3, "Accuracy":metric4}
     for name, func in metrics.items():
         mean, std = func(results_ft_df, IMAGE_BASE_DIR)
-        print(f'{name} - {mean:.2f} ± {std:.2f}')
+        print(f'{name} - {mean:.2f}')
         
 if __name__ == "__main__":
     main()
