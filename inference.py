@@ -1,10 +1,11 @@
+# Import necessary libraries
 import os
 import zipfile
 import gdown
 import pandas as pd
 import argparse
 import torch
-import clip #! install from pip install git+https://github.com/openai/CLIP.git
+import clip 
 import numpy as np
 from PIL import Image
 import os
@@ -18,10 +19,11 @@ from bert_score import score
 from pathlib import Path
 from sentence_transformers import SentenceTransformer
 
+#Define constants and configuration
 
 BATCH_SIZE = 2
 EVAL_BATCH_SIZE = 2 
-SCRIPT_DIR = Path(__file__).resolve().parent
+SCRIPT_DIR = Path(__file__).resolve().parent # Get current script directory
 OUTPUT_DIR = os.path.join(SCRIPT_DIR,"INPUTS/kaggle/working/blip_vqa_lora_finetuned")
 LORA_ADAPTER_DIR = os.path.join(OUTPUT_DIR, "lora_adapters/")
 MODEL_NAME = "Salesforce/blip-vqa-base"
@@ -29,6 +31,7 @@ DEVICE  = "cuda" if torch.cuda.is_available() else "cpu"
 FILE_ID = '1HvMBKwKywVFinX_Y-SoLRdTWGTEkl84u'
 MAX_LENGTH = 128
 
+# Function to download and unzip a file from Google Drive
 def download_and_unzip(file_id: str, output_folder: str = None):
     """
     Download and unzip a file from Google Drive.
@@ -54,11 +57,14 @@ def download_and_unzip(file_id: str, output_folder: str = None):
 
     print(f"✔ Downloaded and extracted to ./{output_folder}/")
 
-
+# Metric 1: VTGS (Visual Textual Grounded Score)
 def metric1(df, image_dir):
     def load_clip(device):
+        # Load CLIP model and preprocessing
         model, preprocess = clip.load("ViT-B/32", device=device)
         return model.eval(), preprocess
+     
+    # Encode image features using CLIP
     def embed_images(model, preprocess, image_paths, device, batch_size=32):
         embs = []
         for i in tqdm(range(0, len(image_paths), batch_size), desc="Images"):
@@ -70,6 +76,8 @@ def metric1(df, image_dir):
                 e = e / e.norm(dim=-1, keepdim=True)
             embs.append(e.cpu().numpy())
         return np.vstack(embs)
+    
+    # Encode text features using CLIP
     def embed_texts(model, texts, device, batch_size=32):
         embs = []
         for i in tqdm(range(0, len(texts), batch_size), desc="Texts"):
@@ -80,8 +88,11 @@ def metric1(df, image_dir):
                 e = e / e.norm(dim=-1, keepdim=True)
             embs.append(e.cpu().numpy())
         return np.vstack(embs)
+    
     def cosine(a, b):
         return np.einsum('ij,ij->i', a, b)
+    
+     # Compute VTGS combining CLIP and BERTScore
     def compute_vtgs(df, device):
         clip_model, preprocess = load_clip(device)
         img_emb = embed_images (clip_model, preprocess, df["image_name"].tolist(), device)
@@ -96,6 +107,8 @@ def metric1(df, image_dir):
         df_out["clipscore"]    = clip_norm
         df_out["vtgs"]         = vtgs
         return df_out
+    
+    # Normalize text
     df['generated_answer']=df['generated_answer'].apply(lambda x:str(x).lower())
     df['answer']=df['answer'].apply(lambda x:str(x).lower())
     result = compute_vtgs(df, DEVICE)
@@ -103,6 +116,7 @@ def metric1(df, image_dir):
     std_v  = result["vtgs"].std()
     return [mean_v,std_v]
 
+#  Metric 2: CSNS (Contextual Semantic-Numeric Score)
 def metric2(df, image_dir):
     def is_number(s):
         try:
@@ -110,11 +124,14 @@ def metric2(df, image_dir):
             return True
         except:
             return False
+        
+    #  Score for numeric answers using exponential decay of relative error
     def numeric_score(gt, pred, alpha=5, epsilon=1e-6):
         a, b = float(gt), float(pred)
         rel_err = abs(b - a) / (abs(a) + epsilon)
         return math.exp(-alpha * rel_err)
 
+    # Semantic similarity using Sentence Transformers
     def semantic_score(emb_model, gt, pred):
         e1 = emb_model.encode(gt, convert_to_numpy=True, normalize_embeddings=True)
         e2 = emb_model.encode(pred, convert_to_numpy=True, normalize_embeddings=True)
@@ -138,13 +155,14 @@ def metric2(df, image_dir):
     std_csns  = result["csns"].std()
     return [mean_csns, std_csns]
 
-
+# Metric 3: BERTScore Precision
 def metric3(df, image_dir):
     df['generated_answer']=df['generated_answer'].apply(lambda x:str(x).lower())
     df['answer']=df['answer'].apply(lambda x:str(x).lower())
     P, _, _ = score(df["generated_answer"].tolist(),df["answer"].tolist(),lang="en",verbose=False,device=DEVICE)
     return [P.mean(), P.std()]
 
+# Metric 4: Exact Match Accuracy
 def metric4(df, image_dir):
     df['generated_answer']=df['generated_answer'].apply(lambda x:str(x).lower())
     df['answer']=df['answer'].apply(lambda x:str(x).lower())
@@ -156,13 +174,17 @@ def main():
     parser.add_argument('--image_dir', type=str, required=True, help='Path to image folder')
     parser.add_argument('--csv_path', type=str, required=True, help='Path to image-metadata CSV')
     args = parser.parse_args()
-    download_and_unzip(FILE_ID, "INPUTS")
+    
+    download_and_unzip(FILE_ID, "INPUTS") # Download required files from Google Drive
+
+    # Load base and fine-tuned models
     base_model = BlipForQuestionAnswering.from_pretrained(MODEL_NAME)
     finetuned_model = PeftModel.from_pretrained(base_model, LORA_ADAPTER_DIR)
     finetuned_model = finetuned_model.to(DEVICE) 
     finetuned_model.eval()
     eval_processor = BlipProcessor.from_pretrained(LORA_ADAPTER_DIR)
 
+    # Load evaluation dataset
     eval_df = pd.read_csv(args.csv_path)
     predictions_ft = []
     ground_truths_normalized_ft = []
@@ -173,6 +195,8 @@ def main():
     IMAGE_BASE_DIR = args.image_dir
 
     print(eval_df.head())
+
+    # Evaluate the model in batches
     with torch.no_grad():
         for i in tqdm(range(0, len(eval_df), EVAL_BATCH_SIZE), total=num_batches_eval, desc="Evaluating Fine-tuned Model"):
             batch_df = eval_df[i:i+EVAL_BATCH_SIZE]
@@ -194,7 +218,7 @@ def main():
                     batch_images_pil.append(raw_image)
                     batch_questions.append(question)
                     current_batch_ground_truths.append(true_answer)
-                    current_batch_original_indices.append(original_df_idx)
+                    current_batch_original_indices.append(original_df_idx) #loading file_path, question and answers for each batch
                 except FileNotFoundError:
                     print(f"Warning (Eval): Image not found at {img_path}. Skipping.")
                 except Exception as e:
@@ -203,7 +227,8 @@ def main():
             if not batch_images_pil:
                 print(f"Warning (Eval): No valid images for batch starting at {i}. Skipping.")
                 continue
-
+            
+            # Generate predictions using the model (processing each batch)
             inputs = eval_processor(images=batch_images_pil, text=batch_questions, return_tensors="pt", padding=True, truncation=True).to(DEVICE)
             outputs = finetuned_model.generate(**inputs, max_new_tokens=10)
             batch_preds_decoded = eval_processor.batch_decode(outputs, skip_special_tokens=True)
@@ -219,10 +244,13 @@ def main():
                 ground_truths_normalized_ft.append(true_answer_normalized)
                 original_indices_ft.append(current_batch_original_indices[pred_idx])
 
+    # Update dataframe with predictions
     eval_df['answer']=ground_truths_normalized_ft
     eval_df['generated_answer']=predictions_ft
     results_ft_df = eval_df
     results_ft_df.to_csv("results.csv", index=False)
+    
+    # Compute and print all evaluation metrics
     metrics={"VTGS":metric1, "CSNS":metric2, "BERT":metric3, "Accuracy":metric4}
     for name, func in metrics.items():
         mean, std = func(results_ft_df, IMAGE_BASE_DIR)
