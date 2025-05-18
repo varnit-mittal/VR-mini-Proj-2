@@ -38,9 +38,9 @@ This repository implements a multiple‐choice Visual Question Answering (VQA) p
 
 
 
-## Documentation
+## Report
 
-[Documentation](https://linktodocumentation)
+[Report](https://linktodocumentation)
 
 
 ## Environment Variables
