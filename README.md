@@ -55,7 +55,7 @@ To run `partA.ipynb` for dataset curation, you will need to add the following en
 Clone the project
 
 ```bash
-  git clone https://github.com/varnit-mittal/VR-mini-Proj-2
+  git clone https://github.com/varnit-mittal/VR-mini-Proj-2.git
 ```
 
 Go to the project directory
